@@ -39,11 +39,15 @@ const KeyManagement = () => {
   const handleCreateKey = async (e) => {
     e.preventDefault();
     try {
-      await keyAPI.create(formData.type, formData.note);
+      const response = await keyAPI.create(formData.type, formData.note);
+      const newKey = response.data;
+      
+      // Insert new key at the beginning of the list (real-time)
+      setKeys(prevKeys => [newKey, ...prevKeys]);
+      
       toast.success('Key created successfully!');
       setShowCreateModal(false);
       setFormData({ type: 'trial', note: '' });
-      fetchKeys();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create key');
     }
@@ -52,14 +56,22 @@ const KeyManagement = () => {
   const handleUpdateKey = async (e) => {
     e.preventDefault();
     try {
-      await keyAPI.update(selectedKey.key_value, {
+      const response = await keyAPI.update(selectedKey.key_value, {
         is_active: selectedKey.is_active,
         note: selectedKey.note,
       });
+      const updatedKey = response.data;
+      
+      // Update key in list (real-time)
+      setKeys(prevKeys => 
+        prevKeys.map(key => 
+          key.key_value === selectedKey.key_value ? updatedKey : key
+        )
+      );
+      
       toast.success('Key updated successfully!');
       setShowEditModal(false);
       setSelectedKey(null);
-      fetchKeys();
     } catch (error) {
       toast.error('Failed to update key');
     }
@@ -69,8 +81,11 @@ const KeyManagement = () => {
     if (window.confirm('Are you sure you want to delete this key?')) {
       try {
         await keyAPI.delete(keyValue);
+        
+        // Remove key from list (real-time)
+        setKeys(prevKeys => prevKeys.filter(key => key.key_value !== keyValue));
+        
         toast.success('Key deleted successfully!');
-        fetchKeys();
       } catch (error) {
         toast.error('Failed to delete key');
       }
@@ -79,12 +94,20 @@ const KeyManagement = () => {
 
   const handleToggleActive = async (key) => {
     try {
-      await keyAPI.update(key.key_value, {
+      const response = await keyAPI.update(key.key_value, {
         is_active: !key.is_active,
         note: key.note,
       });
+      const updatedKey = response.data;
+      
+      // Update key in list (real-time)
+      setKeys(prevKeys => 
+        prevKeys.map(k => 
+          k.key_value === key.key_value ? updatedKey : k
+        )
+      );
+      
       toast.success(`Key ${!key.is_active ? 'activated' : 'deactivated'}!`);
-      fetchKeys();
     } catch (error) {
       toast.error('Failed to update key status');
     }
