@@ -126,13 +126,25 @@ const KeyManagement = () => {
     return 'year';
   };
 
-  const getKeyTypeLabel = (expiredAt) => {
-    if (!expiredAt) return 'Lifetime';
-    const daysDiff = Math.ceil((new Date(expiredAt) - new Date()) / (1000 * 60 * 60 * 24));
-    if (daysDiff <= 7) return 'Trial';
-    if (daysDiff <= 35) return 'Monthly';
-    return 'Yearly';
-  };
+const getKeyTypeLabel = (expiredAt) => {
+  if (!expiredAt) return 'Unknown';
+  
+  const expireDate = new Date(expiredAt);
+  
+  // Nếu năm >= 3000 → lifetime
+  if (expireDate.getFullYear() >= 3000) {
+    return 'Lifetime';
+  }
+  
+  const now = new Date();
+  const diffTime = expireDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays <= 7) return 'Trial';
+  if (diffDays <= 35) return 'Monthly';
+  if (diffDays <= 400) return 'Yearly';
+  return 'Lifetime';
+};
 
   // Filter by tab
   const tabFilteredKeys = keys.filter((key) => {
