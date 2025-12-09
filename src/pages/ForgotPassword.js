@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const { requestPasswordReset, verifyPasswordReset } = useAuth();
-  const [step, setStep] = useState(1); // 1: request, 2: verify
+  const [step, setStep] = useState(1); // 1: yêu cầu, 2: xác minh
   const [formData, setFormData] = useState({
     email: '',
     newPassword: '',
@@ -26,12 +26,12 @@ const ForgotPassword = () => {
     e.preventDefault();
     
     if (formData.newPassword !== formData.confirmPassword) {
-      toast.error('Passwords do not match!');
+      toast.error('Mật khẩu nhập lại không khớp!');
       return;
     }
 
     if (formData.newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters!');
+      toast.error('Mật khẩu phải có ít nhất 8 ký tự!');
       return;
     }
 
@@ -43,7 +43,7 @@ const ForgotPassword = () => {
     );
 
     if (result.success) {
-      toast.success('OTP sent to your email!');
+      toast.success('OTP đã được gửi tới email của bạn!');
       setStep(2);
     } else {
       toast.error(result.message);
@@ -56,7 +56,7 @@ const ForgotPassword = () => {
     e.preventDefault();
 
     if (formData.otpCode.length !== 6) {
-      toast.error('Please enter a valid 6-digit OTP code!');
+      toast.error('Vui lòng nhập mã OTP 6 chữ số hợp lệ!');
       return;
     }
 
@@ -64,7 +64,7 @@ const ForgotPassword = () => {
     const result = await verifyPasswordReset(formData.email, formData.otpCode);
 
     if (result.success) {
-      toast.success('Password reset successful! Please login.');
+      toast.success('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.');
       navigate('/login');
     } else {
       toast.error(result.message);
@@ -81,8 +81,8 @@ const ForgotPassword = () => {
             <div className="col-md-5 col-sm-12 col-12 align-self-center">
               <div className="sign-user_card">
                 <h1 className="mb-3">SIMPLE BIM</h1>
-                <h3 className="mb-3">Reset Password</h3>
-                <p>{step === 1 ? 'Enter your email and new password' : 'Enter OTP code from email'}</p>
+                <h3 className="mb-3">Đặt lại mật khẩu</h3>
+                <p>{step === 1 ? 'Nhập email và mật khẩu mới' : 'Nhập mã OTP từ email'}</p>
 
                 {step === 1 ? (
                   <form onSubmit={handleRequestReset}>
@@ -112,7 +112,7 @@ const ForgotPassword = () => {
                             onChange={handleChange}
                             required
                           />
-                          <label>New Password</label>
+                          <label>Mật khẩu mới</label>
                         </div>
                       </div>
                       <div className="col-lg-12">
@@ -126,16 +126,16 @@ const ForgotPassword = () => {
                             onChange={handleChange}
                             required
                           />
-                          <label>Confirm Password</label>
+                          <label>Nhập lại mật khẩu</label>
                         </div>
                       </div>
                     </div>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? 'Sending OTP...' : 'Send OTP'}
+                      {loading ? 'Đang gửi OTP...' : 'Gửi OTP'}
                     </button>
                     <p className="mt-3">
                       <Link to="/login" className="text-primary">
-                        Back to Login
+                        Quay lại đăng nhập
                       </Link>
                     </p>
                   </form>
@@ -144,7 +144,7 @@ const ForgotPassword = () => {
                     <div className="row">
                       <div className="col-lg-12">
                         <div className="alert alert-info" role="alert">
-                          <small>Check your email ({formData.email}) for the 6-digit OTP code.</small>
+                          <small>Kiểm tra email ({formData.email}) để lấy mã OTP 6 chữ số.</small>
                         </div>
                       </div>
                       <div className="col-lg-12">
@@ -160,12 +160,12 @@ const ForgotPassword = () => {
                             required
                             style={{ letterSpacing: '10px', fontSize: '24px' }}
                           />
-                          <label>OTP Code</label>
+                          <label>Mã OTP</label>
                         </div>
                       </div>
                     </div>
                     <button type="submit" className="btn btn-primary" disabled={loading}>
-                      {loading ? 'Verifying...' : 'Verify & Reset Password'}
+                      {loading ? 'Đang kiểm tra...' : 'Xác minh & đặt lại mật khẩu'}
                     </button>
                     <p className="mt-3">
                       <button
@@ -173,7 +173,7 @@ const ForgotPassword = () => {
                         className="btn btn-link text-primary p-0"
                         onClick={() => setStep(1)}
                       >
-                        Back to Request
+                        Quay lại bước gửi OTP
                       </button>
                     </p>
                   </form>

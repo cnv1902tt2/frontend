@@ -7,6 +7,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import KeyManagement from './pages/KeyManagement';
+import UpdateManagement from './pages/UpdateManagement';
 
 function App() {
   return (
@@ -29,6 +30,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <KeyManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/updates"
+              element={
+                <ProtectedRoute>
+                  <UpdateManagement />
                 </ProtectedRoute>
               }
             />

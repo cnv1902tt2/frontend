@@ -86,7 +86,7 @@ const Sidebar = () => {
     <>
       <div className="iq-sidebar sidebar-default">
       <div className="iq-sidebar-logo d-flex align-items-center justify-content-between">
-        <Link to="/dashboard" className="header-logo">
+        <Link to="/B?ng �i?u khi?n" className="header-logo">
           <h2 className="mb-3">SIMPLE BIM</h2>
         </Link>
         <div className="iq-menu-bt-sidebar">
@@ -99,13 +99,19 @@ const Sidebar = () => {
             <li className={isActive('/dashboard')}>
               <Link to="/dashboard" className="">
                 <i className="las la-home iq-arrow-left"></i>
-                <span>Dashboard</span>
+                <span>Bảng điều khiển</span>
               </Link>
             </li>
             <li className={isActive('/keys')}>
               <Link to="/keys" className="">
                 <i className="las la-key iq-arrow-left"></i>
-                <span>Key Management</span>
+                <span>Quản lý key</span>
+              </Link>
+            </li>
+            <li className={isActive('/updates')}>
+              <Link to="/updates" className="">
+                <i className="las la-cloud-download-alt iq-arrow-left"></i>
+                <span>Quản lý cập nhật</span>
               </Link>
             </li>
           </ul>
@@ -118,7 +124,7 @@ const Sidebar = () => {
                   {user?.username?.charAt(0).toUpperCase() || 'A'}
                 </div>
                 <div className="ml-3 text-white">
-                  <h6 className="mb-0">{user?.username || 'Admin'}</h6>
+                  <h6 className="mb-0">{user?.username || 'Quản trị'}</h6>
                   <small>{user?.email || ''}</small>
                 </div>
               </div>
@@ -127,7 +133,7 @@ const Sidebar = () => {
                 onClick={handleLogout}
               >
                 <i className="las la-sign-out-alt mr-1"></i>
-                Sign Out
+                Đăng xuất
               </button>
             </div>
           </div>

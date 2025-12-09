@@ -30,7 +30,7 @@ const KeyManagement = () => {
       const response = await keyAPI.list();
       setKeys(response.data);
     } catch (error) {
-      toast.error('Failed to load keys');
+      toast.error('Tải danh sách key thất bại');
     } finally {
       setLoading(false);
     }
@@ -45,11 +45,11 @@ const KeyManagement = () => {
       // Insert new key at the beginning of the list (real-time)
       setKeys(prevKeys => [newKey, ...prevKeys]);
       
-      toast.success('Key created successfully!');
+      toast.success('Tạo key thành công!');
       setShowCreateModal(false);
       setFormData({ type: 'trial', note: '' });
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to create key');
+      toast.error(error.response?.data?.detail || 'Tạo key thất bại');
     }
   };
 
@@ -69,25 +69,25 @@ const KeyManagement = () => {
         )
       );
       
-      toast.success('Key updated successfully!');
+      toast.success('Cập nhật key thành công!');
       setShowEditModal(false);
       setSelectedKey(null);
     } catch (error) {
-      toast.error('Failed to update key');
+      toast.error('Cập nhật key thất bại');
     }
   };
 
   const handleDeleteKey = async (keyValue) => {
-    if (window.confirm('Are you sure you want to delete this key?')) {
+    if (window.confirm('Bạn có chắc chắn muốn xóa key này?')) {
       try {
         await keyAPI.delete(keyValue);
         
         // Remove key from list (real-time)
         setKeys(prevKeys => prevKeys.filter(key => key.key_value !== keyValue));
         
-        toast.success('Key deleted successfully!');
+        toast.success('Xóa key thành công!');
       } catch (error) {
-        toast.error('Failed to delete key');
+        toast.error('Xóa key thất bại');
       }
     }
   };
@@ -107,9 +107,9 @@ const KeyManagement = () => {
         )
       );
       
-      toast.success(`Key ${!key.is_active ? 'activated' : 'deactivated'}!`);
+      toast.success(`Key ${!key.is_active ? 'đã kích hoạt' : 'đã khóa'}!`);
     } catch (error) {
-      toast.error('Failed to update key status');
+      toast.error('Cập nhật trạng thái key thất bại');
     }
   };
 
@@ -127,23 +127,23 @@ const KeyManagement = () => {
   };
 
 const getKeyTypeLabel = (expiredAt) => {
-  if (!expiredAt) return 'Unknown';
+  if (!expiredAt) return 'Không xác định';
   
   const expireDate = new Date(expiredAt);
   
   // Nếu năm >= 3000 → lifetime
   if (expireDate.getFullYear() >= 3000) {
-    return 'Lifetime';
+    return 'Trọn đời';
   }
   
   const now = new Date();
   const diffTime = expireDate - now;
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  if (diffDays <= 7) return 'Trial';
-  if (diffDays <= 35) return 'Monthly';
-  if (diffDays <= 400) return 'Yearly';
-  return 'Lifetime';
+  if (diffDays <= 7) return 'Dùng thử';
+  if (diffDays <= 35) return 'Theo tháng';
+  if (diffDays <= 400) return 'Theo năm';
+  return 'Trọn đời';
 };
 
   // Filter by tab
@@ -172,14 +172,14 @@ const getKeyTypeLabel = (expiredAt) => {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' });
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      toast.success('Key copied to clipboard!');
+      toast.success('Đã sao chép key!');
     }).catch(() => {
-      toast.error('Failed to copy key');
+      toast.error('Sao chép key thất bại');
     });
   };
 
@@ -217,7 +217,7 @@ const getKeyTypeLabel = (expiredAt) => {
               <div className="card">
                 <div className="card-header d-flex justify-content-between align-items-center">
                   <div className="header-title">
-                    <h4 className="card-title mb-0">Key Management</h4>
+                    <h4 className="card-title mb-0">Quản lý key</h4>
                   </div>
                   <button
                     className="btn btn-primary btn-sm d-md-none"
@@ -236,7 +236,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>All</span>
+                          <span>Tất cả</span>
                           <span className="badge badge-primary mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('all')}</span>
                         </div>
                       </a>
@@ -248,7 +248,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>Trial</span>
+                          <span>Dùng thử</span>
                           <span className="badge badge-secondary mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('trial')}</span>
                         </div>
                       </a>
@@ -260,7 +260,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>Month</span>
+                          <span>Tháng</span>
                           <span className="badge badge-secondary mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('month')}</span>
                         </div>
                       </a>
@@ -272,7 +272,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>Year</span>
+                          <span>Năm</span>
                           <span className="badge badge-secondary mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('year')}</span>
                         </div>
                       </a>
@@ -284,7 +284,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>Life</span>
+                          <span>Trọn đời</span>
                           <span className="badge badge-secondary mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('lifetime')}</span>
                         </div>
                       </a>
@@ -296,7 +296,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>On</span>
+                          <span>Hoạt động</span>
                           <span className="badge badge-success mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('active')}</span>
                         </div>
                       </a>
@@ -308,7 +308,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         style={{ cursor: 'pointer', padding: '0.5rem 0.25rem', fontSize: '0.875rem' }}
                       >
                         <div className="d-flex flex-column align-items-center">
-                          <span>Off</span>
+                          <span>Khóa</span>
                           <span className="badge badge-danger mt-1" style={{ fontSize: '0.7rem' }}>{getTabCount('inactive')}</span>
                         </div>
                       </a>
@@ -320,7 +320,7 @@ const getKeyTypeLabel = (expiredAt) => {
                       <input
                         type="search"
                         className="form-control"
-                        placeholder="Search keys..."
+                        placeholder="Tìm kiếm key..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -331,7 +331,7 @@ const getKeyTypeLabel = (expiredAt) => {
                           className="btn btn-primary"
                           onClick={() => setShowCreateModal(true)}
                         >
-                          <i className="las la-plus mr-1"></i>Create New Key
+                          <i className="las la-plus mr-1"></i>Tạo key mới
                         </button>
                       </div>
                     </div>
@@ -342,13 +342,13 @@ const getKeyTypeLabel = (expiredAt) => {
                     <table className="table table-striped table-bordered mt-4">
                       <thead>
                         <tr>
-                          <th>Key Value</th>
-                          <th>Type</th>
-                          <th>Status</th>
-                          <th>Created</th>
-                          <th>Expires</th>
-                          <th>Machine</th>
-                          <th>Actions</th>
+                          <th>Giá trị key</th>
+                          <th>Loại</th>
+                          <th>Trạng thái</th>
+                          <th>Ngày tạo</th>
+                          <th>Ngày hết hạn</th>
+                          <th>Thiết bị</th>
+                          <th>Thao tác</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -356,14 +356,14 @@ const getKeyTypeLabel = (expiredAt) => {
                           <tr>
                             <td colSpan="7" className="text-center">
                               <div className="spinner-border text-primary" role="status">
-                                <span className="sr-only">Loading...</span>
+                                <span className="sr-only">Đang tải...</span>
                               </div>
                             </td>
                           </tr>
                         ) : currentKeys.length === 0 ? (
                           <tr>
                             <td colSpan="7" className="text-center">
-                              No keys found
+                              Không có key nào
                             </td>
                           </tr>
                         ) : (
@@ -394,15 +394,15 @@ const getKeyTypeLabel = (expiredAt) => {
                               </td>
                               <td>
                                 <span className={`badge ${key.is_active ? 'badge-success' : 'badge-danger'}`}>
-                                  {key.is_active ? 'Active' : 'Inactive'}
+                                  {key.is_active ? 'Đang hoạt động' : 'Đã khóa'}
                                 </span>
                               </td>
                               <td><small>{formatDate(key.created_at)}</small></td>
                               <td><small>{formatDate(key.expired_at)}</small></td>
                               <td>
                                 <small>
-                                  {key.machine_name || 'N/A'}
-                                  {key.os_version && <><br />OS: {key.os_version}</>}
+                                  {key.machine_name || 'Không có'}
+                                  {key.os_version && <><br />HĐH: {key.os_version}</>}
                                   {key.revit_version && <><br />Revit: {key.revit_version}</>}
                                 </small>
                               </td>
@@ -411,21 +411,21 @@ const getKeyTypeLabel = (expiredAt) => {
                                   <button
                                     className={`btn ${key.is_active ? 'btn-warning' : 'btn-success'}`}
                                     onClick={() => handleToggleActive(key)}
-                                    title={key.is_active ? 'Deactivate' : 'Activate'}
+                                    title={key.is_active ? 'Khóa' : 'Kích hoạt'}
                                   >
                                     <i className={`las ${key.is_active ? 'la-lock' : 'la-unlock'}`}></i>
                                   </button>
                                   <button
                                     className="btn btn-info"
                                     onClick={() => openEditModal(key)}
-                                    title="Edit"
+                                    title="Chỉnh sửa"
                                   >
                                     <i className="las la-edit"></i>
                                   </button>
                                   <button
                                     className="btn btn-danger"
                                     onClick={() => handleDeleteKey(key.key_value)}
-                                    title="Delete"
+                                    title="Xóa"
                                   >
                                     <i className="las la-trash"></i>
                                   </button>
@@ -447,7 +447,7 @@ const getKeyTypeLabel = (expiredAt) => {
                         </div>
                       </div>
                     ) : currentKeys.length === 0 ? (
-                      <div className="alert alert-info text-center">No keys found</div>
+                      <div className="alert alert-info text-center">Không có key nào</div>
                     ) : (
                       currentKeys.map((key) => (
                         <div key={key.key_value} className="card mb-3">
@@ -470,15 +470,15 @@ const getKeyTypeLabel = (expiredAt) => {
                             <div className="d-flex flex-wrap gap-2 mb-2">
                               <span className="badge badge-info">{getKeyTypeLabel(key.expired_at)}</span>
                               <span className={`badge ${key.is_active ? 'badge-success' : 'badge-danger'}`}>
-                                {key.is_active ? 'Active' : 'Inactive'}
+                                {key.is_active ? 'Đang hoạt động' : 'Đã khóa'}
                               </span>
                             </div>
 
                             <div className="small text-muted mb-2">
-                              <div><strong>Created:</strong> {formatDate(key.created_at)}</div>
-                              <div><strong>Expires:</strong> {formatDate(key.expired_at)}</div>
+                              <div><strong>Ngày tạo:</strong> {formatDate(key.created_at)}</div>
+                              <div><strong>Hết hạn:</strong> {formatDate(key.expired_at)}</div>
                               {key.machine_name && (
-                                <div><strong>Machine:</strong> {key.machine_name}</div>
+                                <div><strong>Thiết bị:</strong> {key.machine_name}</div>
                               )}
                             </div>
 
@@ -487,7 +487,7 @@ const getKeyTypeLabel = (expiredAt) => {
                                 className={`btn btn-sm ${key.is_active ? 'btn-warning' : 'btn-success'}`}
                                 onClick={() => handleToggleActive(key)}
                                 style={{ flex: '1', minWidth: '0' }}
-                                title={key.is_active ? 'Lock' : 'Unlock'}
+                                title={key.is_active ? 'Khóa' : 'Kích hoạt'}
                               >
                                 <i className={`las ${key.is_active ? 'la-lock' : 'la-unlock'}`}></i>
                               </button>
@@ -495,7 +495,7 @@ const getKeyTypeLabel = (expiredAt) => {
                                 className="btn btn-sm btn-info"
                                 onClick={() => openEditModal(key)}
                                 style={{ flex: '1', minWidth: '0' }}
-                                title="Edit"
+                                title="Chỉnh sửa"
                               >
                                 <i className="las la-edit"></i>
                               </button>
@@ -503,7 +503,7 @@ const getKeyTypeLabel = (expiredAt) => {
                                 className="btn btn-sm btn-danger"
                                 onClick={() => handleDeleteKey(key.key_value)}
                                 style={{ flex: '1', minWidth: '0' }}
-                                title="Delete"
+                                title="Xóa"
                               >
                                 <i className="las la-trash"></i>
                               </button>
@@ -526,7 +526,7 @@ const getKeyTypeLabel = (expiredAt) => {
                                 onClick={() => paginate(currentPage - 1)}
                                 disabled={currentPage === 1}
                               >
-                                Previous
+                                Trước
                               </button>
                             </li>
                             {[...Array(totalPages)].map((_, index) => {
@@ -568,13 +568,13 @@ const getKeyTypeLabel = (expiredAt) => {
                                 onClick={() => paginate(currentPage + 1)}
                                 disabled={currentPage === totalPages}
                               >
-                                Next
+                                Sau
                               </button>
                             </li>
                           </ul>
                         </nav>
                         <div className="text-center text-muted small">
-                          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredKeys.length)} of {filteredKeys.length} entries
+                          Hiển thị {indexOfFirstItem + 1} - {Math.min(indexOfLastItem, filteredKeys.length)} trên {filteredKeys.length} dòng
                         </div>
                       </div>
                     </div>
@@ -592,7 +592,7 @@ const getKeyTypeLabel = (expiredAt) => {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Create New Key</h5>
+                <h5 className="modal-title">Tạo key mới</h5>
                 <button
                   type="button"
                   className="close"
@@ -604,27 +604,27 @@ const getKeyTypeLabel = (expiredAt) => {
               <form onSubmit={handleCreateKey}>
                 <div className="modal-body">
                   <div className="form-group">
-                    <label>Key Type</label>
+                    <label>Loại key</label>
                     <select
                       className="form-control"
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                       required
                     >
-                      <option value="trial">Trial (7 days)</option>
-                      <option value="month">Monthly (30 days)</option>
-                      <option value="year">Yearly (365 days)</option>
-                      <option value="lifetime">Lifetime</option>
+                      <option value="trial">Dùng thử (7 ngày)</option>
+                      <option value="month">Theo tháng (30 ngày)</option>
+                      <option value="year">Theo năm (365 ngày)</option>
+                      <option value="lifetime">Trọn đời</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Note (Optional)</label>
+                    <label>Ghi chú (không bắt buộc)</label>
                     <textarea
                       className="form-control"
                       rows="3"
                       value={formData.note}
                       onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                      placeholder="Add internal note..."
+                      placeholder="Thêm ghi chú nội bộ..."
                     />
                   </div>
                 </div>
@@ -634,10 +634,10 @@ const getKeyTypeLabel = (expiredAt) => {
                     className="btn btn-secondary"
                     onClick={() => setShowCreateModal(false)}
                   >
-                    Cancel
+                    Hủy
                   </button>
                   <button type="submit" className="btn btn-primary">
-                    Create Key
+                    Tạo key
                   </button>
                 </div>
               </form>
@@ -652,7 +652,7 @@ const getKeyTypeLabel = (expiredAt) => {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Edit Key</h5>
+                <h5 className="modal-title">Chỉnh sửa key</h5>
                 <button
                   type="button"
                   className="close"
@@ -664,7 +664,7 @@ const getKeyTypeLabel = (expiredAt) => {
               <form onSubmit={handleUpdateKey}>
                 <div className="modal-body">
                   <div className="form-group">
-                    <label>Key Value</label>
+                    <label>Giá trị key</label>
                     <input
                       type="text"
                       className="form-control"
@@ -673,7 +673,7 @@ const getKeyTypeLabel = (expiredAt) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Status</label>
+                    <label>Trạng thái</label>
                     <select
                       className="form-control"
                       value={selectedKey.is_active}
@@ -681,12 +681,12 @@ const getKeyTypeLabel = (expiredAt) => {
                         setSelectedKey({ ...selectedKey, is_active: e.target.value === 'true' })
                       }
                     >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
+                      <option value="true">Đang hoạt động</option>
+                      <option value="false">Đã khóa</option>
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Note</label>
+                    <label>Ghi chú</label>
                     <textarea
                       className="form-control"
                       rows="3"
@@ -694,7 +694,7 @@ const getKeyTypeLabel = (expiredAt) => {
                       onChange={(e) =>
                         setSelectedKey({ ...selectedKey, note: e.target.value })
                       }
-                      placeholder="Add internal note..."
+                      placeholder="Thêm ghi chú nội bộ..."
                     />
                   </div>
                 </div>
@@ -704,10 +704,10 @@ const getKeyTypeLabel = (expiredAt) => {
                     className="btn btn-secondary"
                     onClick={() => setShowEditModal(false)}
                   >
-                    Cancel
+                    Hủy
                   </button>
                   <button type="submit" className="btn btn-primary">
-                    Save Changes
+                    Lưu thay đổi
                   </button>
                 </div>
               </form>

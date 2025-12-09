@@ -28,7 +28,7 @@ const Login = () => {
     const result = await login(formData.username, formData.password);
 
     if (result.success) {
-      toast.success('Login successful!');
+      toast.success('Đăng nhập thành công!');
       navigate('/dashboard');
     } else {
       toast.error(result.message);
@@ -45,8 +45,8 @@ const Login = () => {
             <div className="col-md-5 col-sm-12 col-12 align-self-center">
               <div className="sign-user_card">
                 <h1 className="mb-3">SIMPLE BIM</h1>
-                <h3 className="mb-3">Sign In</h3>
-                <p>Login to stay connected.</p>
+                <h3 className="mb-3">Đăng nhập</h3>
+                <p>Đăng nhập để tiếp tục.</p>
                 <form onSubmit={handleSubmit}>
                   <div className="row">
                     <div className="col-lg-12">
@@ -60,7 +60,7 @@ const Login = () => {
                           onChange={handleChange}
                           required
                         />
-                        <label>Username</label>
+                        <label>Tên đăng nhập</label>
                       </div>
                     </div>
                     <div className="col-lg-12">
@@ -74,7 +74,7 @@ const Login = () => {
                           onChange={handleChange}
                           required
                         />
-                        <label>Password</label>
+                        <label>Mật khẩu</label>
                       </div>
                     </div>
                     <div className="col-lg-6">
@@ -88,18 +88,18 @@ const Login = () => {
                           onChange={handleChange}
                         />
                         <label className="custom-control-label" htmlFor="customCheck1">
-                          Remember Me
+                          Ghi nhớ đăng nhập
                         </label>
                       </div>
                     </div>
                     <div className="col-lg-6">
                       <Link to="/forgot-password" className="text-primary float-right">
-                        Forgot Password?
+                        Quên mật khẩu?
                       </Link>
                     </div>
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Signing In...' : 'Sign In'}
+                    {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
                   </button>
                 </form>
               </div>

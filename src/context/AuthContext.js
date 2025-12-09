@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.detail || 'Login failed',
+        message: error.response?.data?.detail || 'Đăng nhập thất bại',
       };
     }
   };
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.detail || 'Failed to send OTP',
+        message: error.response?.data?.detail || 'Gửi OTP không thành công',
       };
     }
   };
@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.detail || 'OTP verification failed',
+        message: error.response?.data?.detail || 'Xác thực OTP thất bại',
       };
     }
   };
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error('useAuth phải được sử dụng trong AuthProvider');
   }
   return context;
 };
