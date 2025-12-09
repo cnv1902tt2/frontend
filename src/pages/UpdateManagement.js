@@ -136,7 +136,12 @@ const UpdateManagement = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const payload = { ...formData, file_size: parseInt(formData.file_size, 10) };
+      // Convert file_size from MB to bytes
+      const fileSizeBytes = Math.round(parseFloat(formData.file_size) * 1024 * 1024);
+      const payload = { 
+        ...formData, 
+        file_size: fileSizeBytes
+      };
       await updateService.createVersion(token, payload);
       setSuccess(`Phát hành phiên bản ${formData.version} thành công!`);
       setShowCreateForm(false);
@@ -414,14 +419,16 @@ const UpdateManagement = () => {
                           </div>
                         </div>
                         <div className="col-md-4">
-                          <label className="form-label fw-semibold text-dark mb-2">Dung lượng tệp (bytes) <span className="text-danger">*</span></label>
+                          <label className="form-label fw-semibold text-dark mb-2">Dung lượng tệp (MB) <span className="text-danger">*</span></label>
                           <input 
                             type="number" 
                             className="form-control form-control-lg" 
                             name="file_size" 
                             value={formData.file_size} 
                             onChange={handleInputChange} 
-                            placeholder="1048576" 
+                            placeholder="876" 
+                            min="0.1"
+                            step="0.1"
                             required 
                           />
                         </div>
@@ -599,25 +606,26 @@ const UpdateManagement = () => {
                                     <button 
                                       className={`btn btn-sm ${isExpanded ? 'btn-info' : 'btn-outline-info'} rounded-pill px-3`} 
                                       onClick={() => toggleDetails(version.id)}
+                                      type="button"
                                     >
                                         <i className={`ri-${isExpanded ? 'eye-off' : 'eye'}${isExpanded ? '-line' : ''} me-1`}></i>
                                         {isExpanded ? 'Ẩn' : 'Xem'}
                                     </button>
                                     <div className="dropdown">
-                                        <button className="btn btn-sm btn-light border rounded-circle" type="button" data-bs-toggle="dropdown">
+                                        <button className="btn btn-sm btn-light border rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                             <i className="ri-more-2-fill"></i>
                                         </button>
                                         <ul className="dropdown-menu dropdown-menu-end shadow border-0" style={{minWidth: '200px'}}>
-                                            {version.is_active ? (
+                                            {version.is_active && (
                                               <li>
-                                                <button className="dropdown-item text-warning" onClick={() => handleDeactivate(version.id)}>
+                                                <button type="button" className="dropdown-item text-warning" onClick={() => handleDeactivate(version.id)}>
                                                   <i className="ri-shut-down-line me-2"></i>Vô hiệu hóa phiên bản
                                                 </button>
                                               </li>
-                                            ) : null}
-                                            <li><hr className="dropdown-divider" /></li>
+                                            )}
+                                            {version.is_active && <li><hr className="dropdown-divider" /></li>}
                                             <li>
-                                              <button className="dropdown-item text-danger" onClick={() => handleDelete(version.id)}>
+                                              <button type="button" className="dropdown-item text-danger" onClick={() => handleDelete(version.id)}>
                                                 <i className="ri-delete-bin-line me-2"></i>Xóa phiên bản
                                               </button>
                                             </li>

@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import KeyManagement from './pages/KeyManagement';
 import UpdateManagement from './pages/UpdateManagement';
+import Downloads from './pages/Downloads';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/downloads" element={<Downloads />} />
             <Route
               path="/dashboard"
               element={
@@ -41,8 +43,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/downloads" replace />} />
+            <Route path="*" element={<Navigate to="/downloads" replace />} />
           </Routes>
           <ToastContainer
             position="top-right"

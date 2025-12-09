@@ -96,6 +96,12 @@ const Sidebar = () => {
       <div className="data-scrollbar" data-scroll="1">
         <nav className="iq-sidebar-menu">
           <ul id="iq-sidebar-toggle" className="iq-menu">
+            <li className={isActive('/downloads')}>
+              <Link to="/downloads" className="">
+                <i className="las la-download iq-arrow-left"></i>
+                <span>Tải xuống</span>
+              </Link>
+            </li>
             <li className={isActive('/dashboard')}>
               <Link to="/dashboard" className="">
                 <i className="las la-home iq-arrow-left"></i>
