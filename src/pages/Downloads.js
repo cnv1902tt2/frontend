@@ -24,6 +24,32 @@ const styles = {
     fontSize: '1.3rem',
     opacity: '0.95'
   },
+  setupGuideBox: {
+    background: '#fff3cd',
+    border: '1px solid #ffc107',
+    borderRadius: '8px',
+    padding: '20px',
+    marginBottom: '40px',
+    borderLeft: '4px solid #ffc107'
+  },
+  setupGuideTitle: {
+    color: '#856404',
+    fontWeight: '600',
+    marginBottom: '15px',
+    fontSize: '1.1rem'
+  },
+  setupStep: {
+    marginBottom: '12px',
+    color: '#856404',
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px'
+  },
+  setupStepNumber: {
+    fontSize: '1.3rem',
+    flexShrink: 0,
+    minWidth: '30px'
+  },
   versionCard: {
     background: '#fff',
     borderRadius: '15px',
@@ -188,11 +214,20 @@ const Downloads = () => {
 
   const handleDownload = async (version) => {
     try {
+      // Track download từ frontend
       await downloadService.trackDownload(version.id);
-      window.open(version.download_url, '_blank');
+      
+      // Tải file ZIP từ backend (sẽ tự động tạo ZIP chứa DLL + PDB + exe)
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+      const downloadUrl = `${API_BASE_URL}/updates/versions/${version.id}/download`;
+      
+      window.open(downloadUrl, '_blank');
     } catch (err) {
       console.error('Error tracking download:', err);
-      window.open(version.download_url, '_blank');
+      // Fallback nếu tracking thất bại, vẫn tải file
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+      const downloadUrl = `${API_BASE_URL}/updates/versions/${version.id}/download`;
+      window.open(downloadUrl, '_blank');
     }
   };
 
@@ -227,6 +262,26 @@ const Downloads = () => {
       </div>
 
       <div className="container">
+        {/* Setup Guide - Universal */}
+        <div style={styles.setupGuideBox}>
+          <div style={styles.setupGuideTitle}>
+            <i className="ri-information-line me-2"></i>
+            Cách cài đặt & cập nhật
+          </div>
+          <div style={styles.setupStep}>
+            <div style={styles.setupStepNumber}>1️⃣</div>
+            <span><strong>Lần đầu cài đặt?</strong> Tải ZIP bất kỳ phiên bản nào → Giải nén → Chạy file <code style={{background: '#fff', padding: '2px 6px', borderRadius: '3px', fontWeight: '600'}}>install.exe</code></span>
+          </div>
+          <div style={styles.setupStep}>
+            <div style={styles.setupStepNumber}>2️⃣</div>
+            <span><strong>Đã cài rồi?</strong> Tải ZIP mới → Revit sẽ tự động kiểm tra và cập nhật khi khởi động</span>
+          </div>
+          <div style={styles.setupStep}>
+            <div style={styles.setupStepNumber}>3️⃣</div>
+            <span><strong>Lưu ý quan trọng:</strong> Mỗi phiên bản đều kèm file <code style={{background: '#fff', padding: '2px 6px', borderRadius: '3px', fontWeight: '600'}}>install.exe</code> - bạn có thể bỏ qua nếu đã cài đặt trước đó</span>
+          </div>
+        </div>
+
         {/* Filters */}
         <div style={styles.filterContainer}>
           <label className="fw-semibold me-3" style={{marginBottom: 0}}>Lọc theo loại cập nhật:</label>
