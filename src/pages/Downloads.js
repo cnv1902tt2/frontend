@@ -47,15 +47,23 @@ const Downloads = () => {
 
   const handleDownload = async (version) => {
     try {
-      await downloadService.trackDownload(version.id, GITHUB_REPO);
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-      const downloadUrl = `${API_BASE_URL}/updates/versions/${version.id}/download?github_repo=${encodeURIComponent(GITHUB_REPO)}`;
-      window.open(downloadUrl, '_blank');
+      // Track download for statistics
+      await downloadService.trackDownload(version.id);
+      
+      // Use the direct download_url from version (GitHub URL entered by admin)
+      if (version.download_url) {
+        window.open(version.download_url, '_blank');
+      } else {
+        // Fallback to API endpoint if no direct URL
+        const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+        window.open(`${API_BASE_URL}/updates/versions/${version.id}/download`, '_blank');
+      }
     } catch (err) {
       console.error('Error tracking download:', err);
-      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
-      const downloadUrl = `${API_BASE_URL}/updates/versions/${version.id}/download?github_repo=${encodeURIComponent(GITHUB_REPO)}`;
-      window.open(downloadUrl, '_blank');
+      // Still allow download even if tracking fails
+      if (version.download_url) {
+        window.open(version.download_url, '_blank');
+      }
     }
   };
 
