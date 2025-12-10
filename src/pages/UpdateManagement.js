@@ -3,61 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { updateService } from '../services/updateService';
 
-// --- CSS Styles ---
-const styles = {
-  card: {
-    border: 'none',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-    transition: 'all 0.3s ease',
-    backgroundColor: '#fff',
-    marginBottom: '24px',
-    overflow: 'hidden'
-  },
-  statCard: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '24px',
-    height: '100%',
-    borderLeft: '4px solid transparent',
-    borderRadius: '12px',
-    background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-    border: '1px solid rgba(0,0,0,0.05)'
-  },
-  statIcon: {
-    width: '56px',
-    height: '56px',
-    borderRadius: '12px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '28px',
-    marginRight: '20px',
-    flexShrink: 0,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-  },
-  tableHeader: {
-    backgroundColor: '#f8fafc',
-    textTransform: 'uppercase',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: '#64748b',
-    letterSpacing: '0.5px',
-    borderBottom: '2px solid #e2e8f0'
-  },
-  sectionTitle: {
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: '20px',
-    paddingBottom: '12px',
-    borderBottom: '2px solid #f1f5f9'
-  },
-  formGroup: {
-    marginBottom: '20px'
-  }
-};
-
 const UpdateManagement = () => {
   const navigate = useNavigate();
   const [versions, setVersions] = useState([]);
@@ -66,6 +11,7 @@ const UpdateManagement = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [expandedRow, setExpandedRow] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -89,6 +35,13 @@ const UpdateManagement = () => {
     loadStatistics();
   }, [navigate]);
 
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
+
   const loadVersions = async () => {
     try {
       setLoading(true);
@@ -96,7 +49,6 @@ const UpdateManagement = () => {
       const data = await updateService.getVersions(token);
       setVersions(data);
     } catch (err) {
-      console.error('Không tải được danh sách phiên bản:', err);
       setError(err.response?.data?.detail || 'Tải danh sách phiên bản thất bại');
     } finally {
       setLoading(false);
@@ -110,7 +62,6 @@ const UpdateManagement = () => {
       setStatistics(data);
     } catch (err) {
       console.error('Không tải được thống kê:', err);
-      setError(err.response?.data?.detail || 'Tải thống kê thất bại');
     }
   };
 
@@ -122,43 +73,123 @@ const UpdateManagement = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (editingId) return await handleUpdate(e);
 
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      // Convert file_size from MB to bytes
-      const fileSizeBytes = Math.round(parseFloat(formData.file_size) * 1024 * 1024);
-      const payload = { 
-        ...formData, 
-        file_size: fileSizeBytes
+      
+      // Prepare data - file_size is optional, backend will calculate from file
+      const submitData = {
+        version: formData.version.trim(),
+        release_notes: formData.release_notes.trim(),
+        download_url: formData.download_url.trim(),
+        checksum_sha256: formData.checksum_sha256.trim(),
+        update_type: formData.update_type || 'optional',
+        force_update: formData.force_update === true || formData.force_update === 'true',
+        min_required_version: formData.min_required_version || '1.0.0.0'
       };
-      await updateService.createVersion(token, payload);
+      
+      // Only include file_size if provided
+      if (formData.file_size) {
+        const fileSizeBytes = Math.round(parseFloat(formData.file_size) * 1024 * 1024);
+        if (!isNaN(fileSizeBytes) && fileSizeBytes > 0) {
+          submitData.file_size = fileSizeBytes;
+        }
+      }
+      
+      console.log('Submitting data:', submitData);
+      await updateService.createVersion(token, submitData);
       setSuccess(`Phát hành phiên bản ${formData.version} thành công!`);
-      setShowCreateForm(false);
-      setFormData({
-        version: '',
-        release_notes: '',
-        download_url: '',
-        file_size: '',
-        checksum_sha256: '',
-        update_type: 'optional',
-        force_update: false,
-        min_required_version: '1.0.0.0'
-      });
+      resetForm();
       loadVersions();
       loadStatistics();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Tạo phiên bản thất bại');
+      const detail = err.response?.data?.detail;
+      // Handle validation errors (array of objects) or string error
+      if (Array.isArray(detail)) {
+        setError(detail.map(e => e.msg || JSON.stringify(e)).join(', '));
+      } else if (typeof detail === 'object') {
+        setError(JSON.stringify(detail));
+      } else {
+        setError(detail || 'Tạo phiên bản thất bại');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (version) => {
+    setEditingId(version.id);
+    // Convert file_size from bytes to MB for display in form
+    const fileSizeMB = version.file_size ? (version.file_size / (1024 * 1024)).toFixed(2) : '';
+    setFormData({
+      version: version.version,
+      release_notes: version.release_notes || '',
+      download_url: version.download_url || '',
+      file_size: fileSizeMB,
+      checksum_sha256: version.checksum_sha256 || '',
+      update_type: version.update_type || 'optional',
+      force_update: version.force_update || false,
+      min_required_version: version.min_required_version || '1.0.0.0'
+    });
+    setShowCreateForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const updateData = {};
+      
+      // Only include fields that have values
+      if (formData.release_notes?.trim()) updateData.release_notes = formData.release_notes.trim();
+      if (formData.download_url?.trim()) updateData.download_url = formData.download_url.trim();
+      if (formData.checksum_sha256?.trim()) updateData.checksum_sha256 = formData.checksum_sha256.trim();
+      if (formData.update_type) updateData.update_type = formData.update_type;
+      if (formData.min_required_version?.trim()) updateData.min_required_version = formData.min_required_version.trim();
+      
+      // Handle boolean force_update
+      updateData.force_update = formData.force_update === true || formData.force_update === 'true';
+      
+      // Convert file_size from MB to bytes if provided and valid
+      if (formData.file_size) {
+        const fileSizeNum = parseFloat(formData.file_size);
+        if (!isNaN(fileSizeNum) && fileSizeNum > 0) {
+          updateData.file_size = Math.round(fileSizeNum * 1024 * 1024);
+        }
+      }
+      
+      console.log('Update data:', updateData);
+      const result = await updateService.updateVersion(token, editingId, updateData);
+      console.log('Update result:', result);
+      setSuccess('Cập nhật phiên bản thành công!');
+      resetForm();
+      await loadVersions();
+      await loadStatistics();
+    } catch (err) {
+      console.error('Update error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+      console.error('Error detail:', err.response?.data?.detail);
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail.map(e => e.msg || JSON.stringify(e)).join(', '));
+      } else if (typeof detail === 'object') {
+        setError(JSON.stringify(detail));
+      } else {
+        setError(detail || err.message || 'Cập nhật phiên bản thất bại');
+      }
     } finally {
       setLoading(false);
     }
@@ -177,7 +208,7 @@ const UpdateManagement = () => {
   };
 
   const handleDelete = async (versionId) => {
-    if (!window.confirm('Bạn có chắc muốn xóa phiên bản này? Thao tác sẽ không thể hoàn tác.')) return;
+    if (!window.confirm('Bạn có chắc muốn xóa phiên bản này?')) return;
     try {
       const token = localStorage.getItem('token');
       await updateService.deleteVersion(token, versionId);
@@ -189,36 +220,46 @@ const UpdateManagement = () => {
     }
   };
 
-  const toggleDetails = (versionId) => {
-    setExpandedRow(prev => (prev === versionId ? null : versionId));
+  const resetForm = () => {
+    setFormData({
+      version: '',
+      release_notes: '',
+      download_url: '',
+      file_size: '',
+      checksum_sha256: '',
+      update_type: 'optional',
+      force_update: false,
+      min_required_version: '1.0.0.0'
+    });
+    setShowCreateForm(false);
+    setEditingId(null);
   };
 
-  const renderTypeBadge = (type, force) => {
-    let colorClass = 'bg-secondary';
-    const labelMap = {
-      mandatory: 'Bắt buộc',
-      recommended: 'Khuyến nghị',
-      optional: 'Tùy chọn'
+  const getTypeBadge = (type) => {
+    const c = {
+      mandatory: { label: 'Bắt buộc', color: '#ef4444', bg: '#fee2e2' },
+      recommended: { label: 'Khuyến nghị', color: '#f59e0b', bg: '#fef3c7' },
+      optional: { label: 'Tùy chọn', color: '#3b82f6', bg: '#dbeafe' }
     };
-    if (type === 'mandatory') colorClass = 'bg-danger';
-    if (type === 'recommended') colorClass = 'bg-primary';
-    if (type === 'optional') colorClass = 'bg-info';
-    
-    return (
-      <div className="d-flex flex-column flex-sm-row gap-1">
-        <span className={`badge ${colorClass} bg-opacity-10 text-${colorClass.replace('bg-', '')} border border-${colorClass.replace('bg-', '')} border-opacity-25`} style={{fontWeight: 500}}>
-          {labelMap[type] || type}
-        </span>
-        {force && <span className="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">Bắt buộc</span>}
-      </div>
-    );
+    return c[type] || c.optional;
   };
 
   return (
-    <div className="wrapper bg-light min-vh-100">
+    <div className="wrapper" style={{minHeight: '100vh', backgroundColor: '#f8fafc'}}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus, textarea:focus, select:focus {
+          outline: none !important;
+          border-color: #6366f1 !important;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important;
+        }
+        button:hover:not(:disabled) { opacity: 0.9; transform: translateY(-2px); }
+        button:active:not(:disabled) { transform: translateY(0); }
+        .stat-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+      `}</style>
+
       <Sidebar />
-      <div className="content-page" style={{background:'white'}}>
-        {/* Top Navbar */}
+      <div className="content-page">
         <div className="iq-top-navbar">
           <div className="iq-navbar-custom">
             <nav className="navbar navbar-expand-lg navbar-light p-0">
@@ -232,460 +273,240 @@ const UpdateManagement = () => {
           </div>
         </div>
 
-        <div className="container-fluid py-4 px-3 px-md-4 bg-white">
-          {/* Header Section */}
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4">
-            <div className="mb-3 mb-md-0">
-              <h3 className="fw-bold text-dark mb-1">Quản lý cập nhật</h3>
+        <div className="container-fluid p-4">
+          {/* Header */}
+          <div style={{background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', padding: '32px 24px', marginBottom: '32px', borderRadius: '0 0 24px 24px', boxShadow: '0 10px 40px rgba(99,102,241,0.2)'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'}}>
+              <h1 style={{color: '#fff', fontSize: '1.75rem', fontWeight: 'bold', margin: 0}}>
+                <i className="ri-settings-3-line" style={{marginRight: '12px'}}></i>
+                Quản lý cập nhật
+              </h1>
+              <button
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                disabled={loading}
+                style={{padding: '12px 24px', borderRadius: '12px', border: showCreateForm ? '2px solid rgba(255,255,255,0.3)' : 'none', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s', background: showCreateForm ? 'rgba(239,68,68,0.1)' : '#fff', color: showCreateForm ? '#fff' : '#6366f1'}}
+              >
+                <i className={showCreateForm ? "ri-close-line" : "ri-add-line"}></i>
+                {showCreateForm ? 'Đóng' : 'Phiên bản mới'}
+              </button>
             </div>
-            <button
-              className={`btn ${showCreateForm ? 'btn-outline-danger' : 'btn-primary'} d-flex align-items-center gap-2 shadow-sm`}
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              disabled={loading}
-              style={{borderRadius: '8px', padding: '10px 24px'}}
-            >
-              <i className={showCreateForm ? "ri-close-line" : "ri-add-line"}></i>
-              {showCreateForm ? 'Đóng biểu mẫu' : 'Phiên bản mới'}
-            </button>
           </div>
 
           {/* Alerts */}
-          {(error || success) && (
-            <div className={`alert ${error ? 'alert-danger' : 'alert-success'} alert-dismissible fade show border-0 shadow-sm mb-4`} role="alert" style={{borderRadius: '10px'}}>
-              <div className="d-flex align-items-center">
-                {error && <><i className="ri-error-warning-line me-3 fs-5"></i><div>{error}</div></>}
-                {success && <><i className="ri-checkbox-circle-line me-3 fs-5"></i><div>{success}</div></>}
-              </div>
-              <button type="button" className="btn-close" onClick={() => {setError(''); setSuccess('')}}></button>
+          {error && (
+            <div style={{padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5'}}>
+              <i className="ri-error-warning-line" style={{fontSize: '1.25rem'}}></i>
+              <span>{error}</span>
+              <button onClick={() => setError('')} style={{marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'inherit'}}>×</button>
+            </div>
+          )}
+          {success && (
+            <div style={{padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7'}}>
+              <i className="ri-checkbox-circle-line" style={{fontSize: '1.25rem'}}></i>
+              <span>{success}</span>
+              <button onClick={() => setSuccess('')} style={{marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: 'inherit'}}>×</button>
             </div>
           )}
 
-          {/* Statistics Section */}
+          {/* Stats */}
           {statistics && (
-            <div className="mb-4">
-              <h5 className="mb-3 fw-semibold text-dark">Tổng quan thống kê</h5>
-              <div className="row g-3">
-                {[
-                  { 
-                    title: 'Tổng lượt kiểm tra', 
-                    value: statistics.total_checks, 
-                    icon: 'ri-server-line', 
-                    color: '#4e73df',
-                    bgColor: '#e8f0fe'
-                  },
-                  { 
-                    title: 'Tổng lượt tải', 
-                    value: statistics.total_downloads, 
-                    icon: 'ri-download-cloud-2-line', 
-                    color: '#1cc88a',
-                    bgColor: '#e6fffa'
-                  },
-                  { 
-                    title: 'Tổng lượt cài đặt', 
-                    value: statistics.total_installs, 
-                    icon: 'ri-install-line', 
-                    color: '#36b9cc',
-                    bgColor: '#e0f7fa'
-                  },
-                  { 
-                    title: 'Tỉ lệ thành công', 
-                    value: `${statistics.success_rate ?? 0}%`, 
-                    icon: 'ri-pie-chart-line', 
-                    color: '#f6c23e',
-                    bgColor: '#fff8e1'
-                  }
-                ].map((stat, index) => (
-                  <div key={index} className="col-6 col-md-3">
-                    <div style={{...styles.statCard, borderLeftColor: stat.color}}>
-                      <div style={{...styles.statIcon, backgroundColor: stat.bgColor, color: stat.color}}>
-                        <i className={stat.icon}></i>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '32px'}}>
+              {[
+                { t: 'Lượt kiểm tra', v: statistics.total_checks, i: 'ri-search-line', c: '#6366f1', b: '#eef2ff' },
+                { t: 'Lượt tải', v: statistics.total_downloads, i: 'ri-download-line', c: '#10b981', b: '#d1fae5' },
+                { t: 'Lượt cài đặt', v: statistics.total_installs, i: 'ri-check-line', c: '#06b6d4', b: '#cffafe' },
+                { t: 'Tỉ lệ thành công', v: `${statistics.success_rate ?? 0}%`, i: 'ri-pie-chart-line', c: '#f59e0b', b: '#fef3c7' }
+              ].map((s, i) => (
+                <div key={i} className="stat-hover" style={{backgroundColor: '#fff', borderRadius: '16px', padding: '24px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9', transition: 'all 0.2s'}}>
+                  <div style={{width: '56px', height: '56px', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', backgroundColor: s.b, color: s.c}}>
+                    <i className={s.i}></i>
+                  </div>
+                  <div>
+                    <div style={{fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px'}}>{s.t}</div>
+                    <div style={{fontSize: '1.75rem', fontWeight: 'bold', color: '#1e293b'}}>{formatNumber(s.v)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Form */}
+          {showCreateForm && (
+            <div style={{backgroundColor: '#fff', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', marginBottom: '24px', overflow: 'hidden', border: '1px solid #f1f5f9'}}>
+              <div style={{padding: '24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <h2 style={{fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '12px'}}>
+                  <i className={editingId ? 'ri-edit-line' : 'ri-add-circle-line'}></i>
+                  {editingId ? 'Chỉnh sửa phiên bản' : 'Tạo phiên bản mới'}
+                </h2>
+                <button onClick={resetForm} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem', color: '#94a3b8'}}>×</button>
+              </div>
+              <div style={{padding: '24px'}}>
+                <form onSubmit={handleSubmit}>
+                  <div style={{marginBottom: '32px'}}>
+                    <h3 style={{fontSize: '1rem', fontWeight: '600', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <i className="ri-information-line"></i>Thông tin cơ bản
+                    </h3>
+                    <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px'}}>
+                      <div>
+                        <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>
+                          Phiên bản <span style={{color: '#ef4444'}}>*</span>
+                        </label>
+                        <input type="text" name="version" value={formData.version} onChange={handleInputChange} style={{width: '100%', padding: '12px 16px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '1rem', backgroundColor: editingId ? '#f1f5f9' : '#fff', cursor: editingId ? 'not-allowed' : 'text'}} placeholder="1.0.0.0" required readOnly={!!editingId} />
                       </div>
                       <div>
-                        <div className="text-muted small fw-semibold text-uppercase mb-1">{stat.title}</div>
-                        <div className="h4 mb-0 fw-bold">{formatNumber(stat.value)}</div>
+                        <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>
+                          Kiểu cập nhật <span style={{color: '#ef4444'}}>*</span>
+                        </label>
+                        <select name="update_type" value={formData.update_type} onChange={handleInputChange} style={{width: '100%', padding: '12px 16px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '1rem', backgroundColor: '#fff', cursor: 'pointer'}}>
+                          <option value="optional">Tùy chọn</option>
+                          <option value="recommended">Khuyến nghị</option>
+                          <option value="mandatory">Bắt buộc</option>
+                        </select>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Create Form Section */}
-          {showCreateForm && (
-            <div className="mb-4">
-              <div style={styles.card}>
-                <div className="card-header bg-white border-bottom py-4">
-                  <div className="d-flex align-items-center justify-content-between">
-                    <h5 className="card-title mb-0 fw-bold text-dark">
-                      <i className="ri-upload-cloud-2-line me-2 text-primary"></i>
-                      Tạo phiên bản mới
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-light"
-                      onClick={() => setShowCreateForm(false)}
-                    >
-                      <i className="ri-close-line"></i>
+                  <div style={{marginBottom: '32px'}}>
+                    <h3 style={{fontSize: '1rem', fontWeight: '600', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <i className="ri-folder-zip-line"></i>File cập nhật
+                    </h3>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>
+                      Đường dẫn file ZIP <span style={{color: '#ef4444'}}>*</span>
+                    </label>
+                    <input type="text" name="download_url" value={formData.download_url} onChange={handleInputChange} style={{width: '100%', padding: '12px 16px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '1rem'}} placeholder="C:\Releases\SimpleBIM_v1.0.0.0.zip" required />
+                    <div style={{marginTop: '8px', fontSize: '0.85rem', color: '#64748b'}}>
+                      <i className="ri-information-line"></i> File ZIP phải chứa Installer.exe và SimpleBIM.dll
+                    </div>
+                  </div>
+
+                  <div style={{marginBottom: '32px'}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontWeight: '600', color: '#334155', fontSize: '0.9rem'}}>
+                      Mã băm SHA256 <span style={{color: '#ef4444'}}>*</span>
+                    </label>
+                    <input type="text" name="checksum_sha256" value={formData.checksum_sha256} onChange={handleInputChange} style={{width: '100%', padding: '12px 16px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '1rem', fontFamily: 'monospace'}} placeholder="Nhập mã hash 64 ký tự..." required />
+                  </div>
+
+                  <div style={{marginBottom: '32px'}}>
+                    <h3 style={{fontSize: '1rem', fontWeight: '600', color: '#475569', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      <i className="ri-file-text-line"></i>Ghi chú phát hành
+                    </h3>
+                    <textarea name="release_notes" value={formData.release_notes} onChange={handleInputChange} style={{width: '100%', padding: '12px 16px', borderRadius: '12px', border: '2px solid #e2e8f0', fontSize: '1rem', minHeight: '120px', resize: 'vertical', fontFamily: 'inherit'}} placeholder="Mô tả tính năng mới, sửa lỗi..." required></textarea>
+                  </div>
+
+                  <div style={{display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '20px', borderTop: '1px solid #e2e8f0'}}>
+                    <button type="button" onClick={resetForm} style={{padding: '12px 24px', borderRadius: '12px', border: 'none', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', backgroundColor: '#f1f5f9', color: '#475569'}}>Hủy</button>
+                    <button type="submit" disabled={loading} style={{padding: '12px 24px', borderRadius: '12px', border: 'none', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                      {loading ? <><div style={{width: '16px', height: '16px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite'}}></div>{editingId ? 'Đang cập nhật...' : 'Đang phát hành...'}</> : <><i className={editingId ? 'ri-refresh-line' : 'ri-upload-cloud-line'}></i>{editingId ? 'Cập nhật' : 'Phát hành'}</>}
                     </button>
                   </div>
-                </div>
-                <div className="card-body p-4">
-                  <form onSubmit={handleSubmit}>
-                    {/* Basic Configuration */}
-                    <div className="mb-4">
-                      <h6 style={styles.sectionTitle}>
-                        <i className="ri-settings-3-line me-2"></i>
-                        Cấu hình cơ bản
-                      </h6>
-                      <div className="row g-3">
-                        <div className="col-md-6 col-lg-3">
-                          <label className="form-label fw-semibold text-dark mb-2">Phiên bản <span className="text-danger">*</span></label>
-                          <input 
-                            type="text" 
-                            className="form-control form-control-lg" 
-                            name="version" 
-                            value={formData.version} 
-                            onChange={handleInputChange} 
-                            placeholder="vd: 1.0.0.0" 
-                            required 
-                          />
-                        </div>
-                        <div className="col-md-6 col-lg-3">
-                          <label className="form-label fw-semibold text-dark mb-2">Phiên bản tối thiểu</label>
-                          <input 
-                            type="text" 
-                            className="form-control form-control-lg" 
-                            name="min_required_version" 
-                            value={formData.min_required_version} 
-                            onChange={handleInputChange} 
-                            placeholder="vd: 1.0.0.0" 
-                          />
-                        </div>
-                        <div className="col-md-6 col-lg-3">
-                          <label className="form-label fw-semibold text-dark mb-2">Kiểu cập nhật</label>
-                          <select 
-                            className="form-control form-control-lg d-block" 
-                            name="update_type" 
-                            value={formData.update_type} 
-                            onChange={handleInputChange}
-                          >
-                            <option value="optional">Tùy chọn</option>
-                            <option value="recommended">Khuyến nghị</option>
-                            <option value="mandatory">Bắt buộc</option>
-                          </select>
-                        </div>
-                        <div className="col-md-6 col-lg-3 d-flex align-items-end">
-                          <div className="form-check form-switch mb-2">
-                            <input 
-                              className="form-check-input" 
-                              type="checkbox" 
-                              role="switch" 
-                              id="force_update" 
-                              name="force_update" 
-                              checked={formData.force_update} 
-                              onChange={handleInputChange} 
-                            />
-                            <label className="form-check-label fw-semibold text-dark" htmlFor="force_update">
-                              Bắt buộc cập nhật
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* File Information */}
-                    <div className="mb-4">
-                      <h6 style={styles.sectionTitle}>
-                        <i className="ri-file-line me-2"></i>
-                        Thông tin tệp
-                      </h6>
-                      <div className="row g-3">
-                        <div className="col-md-8">
-                          <label className="form-label fw-semibold text-dark mb-2">URL tải xuống <span className="text-danger">*</span></label>
-                          <div className="input-group input-group-lg">
-                              <span className="input-group-text bg-light border-end-0">
-                                <i className="ri-link text-muted"></i>
-                              </span>
-                              <input 
-                                type="url" 
-                                className="form-control border-start-0 ps-0" 
-                                name="download_url" 
-                                value={formData.download_url} 
-                                onChange={handleInputChange} 
-                                placeholder="https://example.com/update.zip" 
-                                required 
-                              />
-                          </div>
-                        </div>
-                        <div className="col-md-4">
-                          <label className="form-label fw-semibold text-dark mb-2">Dung lượng tệp (MB) <span className="text-danger">*</span></label>
-                          <input 
-                            type="number" 
-                            className="form-control form-control-lg" 
-                            name="file_size" 
-                            value={formData.file_size} 
-                            onChange={handleInputChange} 
-                            placeholder="876" 
-                            min="0.1"
-                            step="0.1"
-                            required 
-                          />
-                        </div>
-                        <div className="col-12 mt-4">
-                          <label className="form-label fw-semibold text-dark mb-2">Mã băm SHA256 <span className="text-danger">*</span></label>
-                          <input 
-                            type="text" 
-                            className="form-control form-control-lg font-monospace" 
-                            name="checksum_sha256" 
-                            value={formData.checksum_sha256} 
-                            onChange={handleInputChange} 
-                            placeholder="Nhập mã hash 64 ký tự..." 
-                            required 
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Release Notes */}
-                    <div className="mb-4">
-                      <h6 style={styles.sectionTitle}>
-                        <i className="ri-file-text-line me-2"></i>
-                        Ghi chú phát hành
-                      </h6>
-                      <div>
-                        <label className="form-label fw-semibold text-dark mb-2">Nội dung <span className="text-danger">*</span></label>
-                        <textarea 
-                          className="form-control" 
-                          name="release_notes" 
-                          value={formData.release_notes} 
-                          onChange={handleInputChange} 
-                          rows="4" 
-                          placeholder="Mô tả tính năng mới, sửa lỗi, cải tiến..." 
-                          required
-                          style={{ fontSize: '1rem' }}
-                        ></textarea>
-                      </div>
-                    </div>
-
-                    {/* Form Actions */}
-                    <div className="d-flex justify-content-center gap-3 pt-3 border-top">
-                      <button 
-                        type="button" 
-                        className="btn btn-outline-secondary px-4 mr-4" 
-                        onClick={() => setShowCreateForm(false)}
-                      >
-                        Hủy
-                      </button>
-                      <button 
-                        type="submit" 
-                        className="btn btn-primary px-4" 
-                        disabled={loading}
-                      >
-                        {loading ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-2"></span>
-                            Đang phát hành...
-                          </>
-                        ) : (
-                          <>
-                            <i className="ri-upload-cloud-line me-2"></i>
-                            Phát hành phiên bản
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                </div>
+                </form>
               </div>
             </div>
           )}
 
-          {/* Versions List */}
-          <div>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="fw-bold text-dark mb-0">
-                <i className="ri-history-line me-2"></i>
-                Lịch sử phiên bản
-              </h5>
-              <span className="badge bg-light text-dark border px-3 py-2">
-                <i className="ri-database-line me-1"></i>
-                Tổng số: {versions.length}
-              </span>
-            </div>
-            
-            <div style={styles.card}>
-              <div className="card-header bg-white border-bottom py-4">
-                <h5 className="card-title mb-0 fw-semibold text-dark">Tất cả phiên bản đã phát hành</h5>
-              </div>
-              <div className="card-body p-0">
-                {loading && !versions.length ? (
-                  <div className="text-center py-5">
-                      <div className="spinner-border text-primary mb-3" role="status" style={{width: '3rem', height: '3rem'}}></div>
-                      <p className="text-muted">Đang tải danh sách phiên bản...</p>
-                  </div>
-                ) : versions.length === 0 ? (
-                  <div className="text-center py-5 text-muted">
-                      <i className="ri-inbox-line fs-1 d-block mb-3 opacity-50"></i>
-                      <p className="mb-2">Chưa có phiên bản nào</p>
-                      <button 
-                        className="btn btn-outline-primary btn-sm"
-                        onClick={() => setShowCreateForm(true)}
-                      >
-                        <i className="ri-add-line me-1"></i>
-                        Tạo phiên bản đầu tiên
-                      </button>
-                  </div>
-                ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead style={styles.tableHeader}>
-                        <tr>
-                          <th className="ps-4 py-3" style={{width: '25%'}}>Thông tin phiên bản</th>
-                          <th className="py-3" style={{width: '15%'}}>Ngày phát hành</th>
-                          <th className="py-3" style={{width: '10%'}}>Kích thước</th>
-                          <th className="py-3" style={{width: '15%'}}>Thống kê</th>
-                          <th className="pe-4 py-3 text-end" style={{width: '15%'}}>Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {versions.map(version => {
-                          const isExpanded = expandedRow === version.id;
-                          const sizeMb = (version.file_size / (1024 * 1024)).toFixed(1);
-                          return (
-                            <React.Fragment key={version.id}>
-                              <tr className={`${!version.is_active ? 'bg-light bg-opacity-50' : ''} border-bottom`}>
-                                <td className="ps-4 py-3">
-                                  <div className="d-flex align-items-start">
-                                      <div className={`rounded-circle p-3 me-3 ${version.is_active ? 'bg-primary bg-opacity-10 text-primary' : 'bg-secondary bg-opacity-10 text-secondary'}`}>
-                                          <i className="ri-git-commit-line fs-4"></i>
-                                      </div>
-                                      <div className="flex-grow-1">
-                                          <div className="d-flex align-items-center gap-2 mb-2">
-                                              <span className="fw-bold text-dark fs-6">{version.version}</span>
-                                              {!version.is_active && (
-                                                <span className="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25">
-                                                  Ngưng hoạt động
-                                                </span>
-                                              )}
-                                          </div>
-                                          {renderTypeBadge(version.update_type, version.force_update)}
-                                      </div>
-                                  </div>
-                                </td>
-                                <td className="py-3">
-                                  <div className="text-dark fw-medium mb-1">
-                                    {new Date(version.release_date).toLocaleDateString('vi-VN', { 
-                                      year: 'numeric', 
-                                      month: 'short', 
-                                      day: 'numeric' 
-                                    })}
-                                  </div>
-                                  <small className="text-muted">
-                                    {new Date(version.release_date).toLocaleTimeString('vi-VN', { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit' 
-                                    })}
-                                  </small>
-                                </td>
-                                <td className="py-3">
-                                  <span className="badge bg-light text-dark border px-3 py-2">
-                                    {sizeMb} MB
-                                  </span>
-                                </td>
-                                <td className="py-3">
-                                  <div className="small text-muted">
-                                    <div className="d-flex gap-3">
-                                      <span><i className="ri-download-line me-1"></i> {formatNumber(version.download_count || 0)}</span>
-                                      <span><i className="ri-check-line me-1"></i> {formatNumber(version.install_count || 0)}</span>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="pe-4 py-3 text-end">
-                                  <div className="d-flex gap-2 justify-content-end">
-                                    <button 
-                                      className={`btn btn-sm ${isExpanded ? 'btn-info' : 'btn-outline-info'} rounded-pill px-3`} 
-                                      onClick={() => toggleDetails(version.id)}
-                                      type="button"
-                                    >
-                                        <i className={`ri-${isExpanded ? 'eye-off' : 'eye'}${isExpanded ? '-line' : ''} me-1`}></i>
-                                        {isExpanded ? 'Ẩn' : 'Xem'}
-                                    </button>
-                                    <div className="dropdown">
-                                        <button className="btn btn-sm btn-light border rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                            <i className="ri-more-2-fill"></i>
-                                        </button>
-                                        <ul className="dropdown-menu dropdown-menu-end shadow border-0" style={{minWidth: '200px'}}>
-                                            {version.is_active && (
-                                              <li>
-                                                <button type="button" className="dropdown-item text-warning" onClick={() => handleDeactivate(version.id)}>
-                                                  <i className="ri-shut-down-line me-2"></i>Vô hiệu hóa phiên bản
-                                                </button>
-                                              </li>
-                                            )}
-                                            {version.is_active && <li><hr className="dropdown-divider" /></li>}
-                                            <li>
-                                              <button type="button" className="dropdown-item text-danger" onClick={() => handleDelete(version.id)}>
-                                                <i className="ri-delete-bin-line me-2"></i>Xóa phiên bản
-                                              </button>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr className="bg-light bg-opacity-25">
-                                  <td colSpan="5" className="p-0">
-                                    <div className="p-4 border-top">
-                                      <div className="row g-4">
-                                          <div className="col-lg-6">
-                                              <label className="small text-uppercase fw-bold text-muted mb-2 d-block">
-                                                <i className="ri-link me-1"></i>URL tải xuống
-                                              </label>
-                                              <div className="bg-white p-3 rounded border font-monospace small text-break">
-                                                <a 
-                                                  href={version.download_url} 
-                                                  target="_blank" 
-                                                  rel="noreferrer" 
-                                                  className="text-decoration-none text-primary"
-                                                >
-                                                  {version.download_url}
-                                                </a>
-                                              </div>
-                                          </div>
-                                          <div className="col-lg-6">
-                                              <label className="small text-uppercase fw-bold text-muted mb-2 d-block">
-                                                <i className="ri-fingerprint-line me-1"></i>Mã băm SHA256
-                                              </label>
-                                              <div className="bg-white p-3 rounded border font-monospace small text-secondary text-break">
-                                                {version.checksum_sha256}
-                                              </div>
-                                          </div>
-                                          <div className="col-12">
-                                              <label className="small text-uppercase fw-bold text-muted mb-2 d-block">
-                                                <i className="ri-file-text-line me-1"></i>Ghi chú phát hành
-                                              </label>
-                                              <div className="bg-white p-4 rounded border">
-                                                <div className="text-dark" style={{whiteSpace: 'pre-wrap'}}>
-                                                  {version.release_notes}
-                                                </div>
-                                              </div>
-                                          </div>
-                                      </div>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+          {/* List */}
+          <div style={{backgroundColor: '#fff', borderRadius: '20px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflow: 'hidden', border: '1px solid #f1f5f9'}}>
+            <div style={{padding: '24px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <h2 style={{fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', margin: 0, display: 'flex', alignItems: 'center', gap: '12px'}}>
+                <i className="ri-history-line"></i>Danh sách phiên bản
+              </h2>
+              <div style={{padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', backgroundColor: '#f1f5f9', color: '#475569'}}>
+                <i className="ri-database-line"></i> {versions.length}
               </div>
             </div>
+
+            {loading && !versions.length ? (
+              <div style={{textAlign: 'center', padding: '60px 20px'}}>
+                <div style={{width: '48px', height: '48px', border: '4px solid #e2e8f0', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px'}}></div>
+                <p style={{color: '#94a3b8'}}>Đang tải...</p>
+              </div>
+            ) : versions.length === 0 ? (
+              <div style={{textAlign: 'center', padding: '60px 20px'}}>
+                <i className="ri-inbox-line" style={{fontSize: '3rem', color: '#cbd5e1', display: 'block', marginBottom: '16px'}}></i>
+                <p style={{color: '#94a3b8', marginBottom: '16px'}}>Chưa có phiên bản nào</p>
+                <button onClick={() => setShowCreateForm(true)} style={{padding: '12px 24px', borderRadius: '12px', border: 'none', fontSize: '1rem', fontWeight: '600', cursor: 'pointer', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '8px'}}>
+                  <i className="ri-add-line"></i>Tạo phiên bản đầu tiên
+                </button>
+              </div>
+            ) : (
+              versions.map((v) => {
+                const exp = expandedRow === v.id;
+                const badge = getTypeBadge(v.update_type);
+                return (
+                  <div key={v.id} style={{padding: '20px 24px', borderBottom: '1px solid #f1f5f9'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '16px', flex: 1}}>
+                        <div style={{width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', backgroundColor: v.is_active ? '#eef2ff' : '#f1f5f9', color: v.is_active ? '#6366f1' : '#94a3b8'}}>
+                          <i className="ri-git-commit-line"></i>
+                        </div>
+                        <div>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px'}}>
+                            <span style={{fontSize: '1.25rem', fontWeight: 'bold', color: '#1e293b'}}>v{v.version}</span>
+                            {!v.is_active && <span style={{padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: '#f1f5f9', color: '#64748b'}}>Ngưng</span>}
+                          </div>
+                          <span style={{padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', backgroundColor: badge.bg, color: badge.color}}>{badge.label}</span>
+                        </div>
+                      </div>
+                      <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                        <button onClick={() => setExpandedRow(exp ? null : v.id)} style={{padding: '8px 16px', borderRadius: '10px', border: 'none', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', backgroundColor: exp ? '#eef2ff' : '#f8fafc', color: exp ? '#6366f1' : '#64748b'}}>
+                          <i className={`ri-eye${exp ? '-off' : ''}-line`}></i> {exp ? 'Ẩn' : 'Xem'}
+                        </button>
+                        <button onClick={() => handleEdit(v)} style={{padding: '8px 16px', borderRadius: '10px', border: 'none', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', backgroundColor: '#eff6ff', color: '#3b82f6'}}>
+                          <i className="ri-edit-line"></i> Sửa
+                        </button>
+                        {v.is_active && (
+                          <button onClick={() => handleDeactivate(v.id)} style={{padding: '8px 16px', borderRadius: '10px', border: 'none', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', backgroundColor: '#fef3c7', color: '#f59e0b'}}>
+                            <i className="ri-shut-down-line"></i> Tắt
+                          </button>
+                        )}
+                        <button onClick={() => handleDelete(v.id)} style={{padding: '8px 16px', borderRadius: '10px', border: 'none', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', backgroundColor: '#fee2e2', color: '#ef4444'}}>
+                          <i className="ri-delete-bin-line"></i> Xóa
+                        </button>
+                      </div>
+                    </div>
+
+                    {exp && (
+                      <div style={{marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '12px'}}>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '16px'}}>
+                          <div style={{padding: '16px', backgroundColor: '#fff', borderRadius: '10px'}}>
+                            <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '6px'}}>LƯỢT TẢI</div>
+                            <div style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b'}}>{formatNumber(v.download_count || 0)}</div>
+                          </div>
+                          <div style={{padding: '16px', backgroundColor: '#fff', borderRadius: '10px'}}>
+                            <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '6px'}}>LƯỢT CÀI</div>
+                            <div style={{fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b'}}>{formatNumber(v.install_count || 0)}</div>
+                          </div>
+                          <div style={{padding: '16px', backgroundColor: '#fff', borderRadius: '10px'}}>
+                            <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '6px'}}>NGÀY PHÁT HÀNH</div>
+                            <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#1e293b'}}>{new Date(v.release_date).toLocaleDateString('vi-VN')}</div>
+                          </div>
+                        </div>
+                        <div style={{marginBottom: '16px'}}>
+                          <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '8px'}}>URL TẢI XUỐNG</div>
+                          <div style={{padding: '12px', backgroundColor: '#fff', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', wordBreak: 'break-all', color: '#475569'}}>
+                            <a href={v.download_url} target="_blank" rel="noreferrer" style={{color: '#3b82f6', textDecoration: 'none'}}>
+                              {v.download_url}
+                            </a>
+                          </div>
+                        </div>
+                        <div style={{marginBottom: '16px'}}>
+                          <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '8px'}}>MÃ BĂM SHA256</div>
+                          <div style={{padding: '12px', backgroundColor: '#fff', borderRadius: '8px', fontFamily: 'monospace', fontSize: '0.85rem', wordBreak: 'break-all', color: '#475569'}}>
+                            {v.checksum_sha256}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '8px'}}>GHI CHÚ PHÁT HÀNH</div>
+                          <div style={{padding: '16px', backgroundColor: '#fff', borderRadius: '8px', whiteSpace: 'pre-wrap', color: '#1e293b', lineHeight: '1.6'}}>
+                            {v.release_notes}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

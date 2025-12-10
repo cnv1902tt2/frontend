@@ -19,6 +19,16 @@ export const updateService = {
     return response.data;
   },
 
+  // Update version (admin)
+  async updateVersion(token, versionId, versionData) {
+    const response = await axios.put(
+      `${API_URL}/updates/versions/${versionId}`,
+      versionData,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  },
+
   // Deactivate version (admin)
   async deactivateVersion(token, versionId) {
     const response = await axios.put(
