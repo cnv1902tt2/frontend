@@ -1,12 +1,39 @@
 // ChatBot Component - Trợ lý AI với session management và RAG
 // Features: Lưu lịch sử, kiểm tra cache, few-shot prompting
+// Hỗ trợ: Google Gemini API và Hugging Face Inference API
 // Author: SimpleBIM Team
 // Last updated: 2025-12-26
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { HfInference } from '@huggingface/inference';
 import chatService from '../services/chatService';
 import ragService from '../services/ragService';
+
+// ==================== API Configuration ====================
+
+// Lấy API keys từ environment
+const GEMINI_API_KEY = process.env.REACT_APP_GEMINI_API_KEY;
+const HF_TOKEN = process.env.REACT_APP_HF_TOKEN;
+
+// Xác định API provider dựa trên key nào được cấu hình
+// Ưu tiên: Gemini > Hugging Face
+const getAPIProvider = () => {
+  if (GEMINI_API_KEY && GEMINI_API_KEY !== 'your_gemini_key_here') {
+    return 'gemini';
+  }
+  if (HF_TOKEN && HF_TOKEN !== 'your_hf_token_here') {
+    return 'huggingface';
+  }
+  return null;
+};
+
+const API_PROVIDER = getAPIProvider();
+
+// Hugging Face model - Meta Llama 3.1 8B Instruct (tốt nhất cho tiếng Việt + Anh)
+const HF_MODEL = 'meta-llama/Meta-Llama-3.1-8B-Instruct';
+
+console.log(`[ChatBot] Using API Provider: ${API_PROVIDER || 'NONE - Please configure API key'}`);
 
 const ChatBot = () => {
   // ==================== State Management ====================
@@ -205,6 +232,10 @@ const ChatBot = () => {
 
   // ==================== LLM + RAG ====================
   
+  /**
+   * Gọi LLM với RAG context
+   * Tự động chọn Gemini hoặc Hugging Face dựa trên config
+   */
   const callLLMWithRAG = async (query) => {
     // 1. Run RAG pipeline - retrieve chunks và build context
     const { context, fewShotPrompt, sources } = await ragService.runRagPipeline(query, messages);
@@ -212,20 +243,87 @@ const ChatBot = () => {
     // 2. Build full prompt
     const prompt = ragService.buildLLMPrompt(query, context, fewShotPrompt);
     
-    // 3. Call Gemini API
-    const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('Chưa cấu hình REACT_APP_GEMINI_API_KEY');
+    // 3. Gọi API dựa trên provider
+    let response;
+    
+    if (API_PROVIDER === 'gemini') {
+      response = await callGeminiAPI(prompt);
+    } else if (API_PROVIDER === 'huggingface') {
+      response = await callHuggingFaceAPI(prompt, query);
+    } else {
+      throw new Error('Chưa cấu hình API key. Vui lòng thêm REACT_APP_GEMINI_API_KEY hoặc REACT_APP_HF_TOKEN vào file .env');
     }
     
-    const genAI = new GoogleGenerativeAI(apiKey);
+    console.log('[RAG] Sources used:', sources);
+    return response;
+  };
+
+  /**
+   * Gọi Google Gemini API
+   */
+  const callGeminiAPI = async (prompt) => {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
     
-    console.log('[RAG] Sources used:', sources);
+    console.log('[Gemini] Response received');
     return response.text();
+  };
+
+  /**
+   * Gọi Hugging Face Inference API
+   * Sử dụng chatCompletion format cho conversational AI
+   */
+  const callHuggingFaceAPI = async (prompt, userQuery) => {
+    const hf = new HfInference(HF_TOKEN);
+    
+    // Build messages array cho chat completion
+    const chatMessages = [
+      {
+        role: 'system',
+        content: `Bạn là trợ lý AI hướng dẫn phát triển SimpleBIM - Revit Add-in.
+Trả lời ngắn gọn, rõ ràng, thân thiện.
+Dùng tiếng Việt nếu người dùng hỏi bằng tiếng Việt, tiếng Anh nếu hỏi bằng tiếng Anh.
+Khi hỏi về C#, Visual Studio → luôn trả lời dựa trên Visual Studio 2022.`
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+    
+    try {
+      const response = await hf.chatCompletion({
+        model: HF_MODEL,
+        messages: chatMessages,
+        max_tokens: 500,
+        temperature: 0.7,
+      });
+      
+      console.log('[HuggingFace] Response received from', HF_MODEL);
+      return response.choices[0].message.content;
+    } catch (error) {
+      console.error('[HuggingFace] Error:', error);
+      
+      // Fallback: Thử với textGeneration nếu chatCompletion không hỗ trợ
+      if (error.message?.includes('not supported')) {
+        console.log('[HuggingFace] Falling back to textGeneration');
+        const fallbackResponse = await hf.textGeneration({
+          model: HF_MODEL,
+          inputs: prompt,
+          parameters: {
+            max_new_tokens: 500,
+            temperature: 0.7,
+            return_full_text: false,
+          }
+        });
+        return fallbackResponse.generated_text;
+      }
+      
+      throw error;
+    }
   };
 
 
