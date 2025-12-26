@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import ChatBot from './ChatBot';
+import ChatBot from './ChatBotNew';
 
 const AdminLayout = () => {
   const styles = {
