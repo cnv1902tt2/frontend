@@ -33,11 +33,9 @@ const DocsLayout = () => {
           top: 0;
           left: 260px;
           right: 0;
-          z-index: 1100;
+          z-index: 100;
           background-color: #FFFFFF;
           border-bottom: 1px solid #e5e7eb;
-          padding-top: env(safe-area-inset-top);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
         .layout-navbar-wrapper-no-sidebar {
           left: 0;
@@ -51,7 +49,7 @@ const DocsLayout = () => {
         }
         .layout-main-content {
           flex: 1;
-          margin-top: calc(100px + env(safe-area-inset-top));
+          margin-top: 100px;
         }
         @media (max-width: 1199px) {
           .layout-content-page {
@@ -61,12 +59,12 @@ const DocsLayout = () => {
             left: 0;
           }
           .layout-main-content {
-            margin-top: calc(150px + env(safe-area-inset-top));
+            margin-top: 150px;
           }
         }
         @media (max-width: 767px) {
           .layout-main-content {
-            margin-top: calc(150px + env(safe-area-inset-top));
+            margin-top: 150px;
           }
           .layout-inner-content {
             padding: 12px;
