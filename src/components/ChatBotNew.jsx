@@ -1,9 +1,10 @@
 // ChatBot Component - Trợ lý AI với session management
 // Features: Lưu lịch sử, kiểm tra cache, RAG + LLM ở backend
 // Author: SimpleBIM Team
-// Last updated: 2025-12-26
+// Last updated: 2025-12-29
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { marked } from 'marked';
 import chatService from '../services/chatService';
 
 const ChatBot = () => {
@@ -382,6 +383,100 @@ const ChatBot = () => {
           border-bottom-left-radius: 4px;
         }
         
+        /* Markdown formatting styles for assistant messages */
+        .message.assistant strong,
+        .message.assistant b {
+          font-weight: 600;
+          color: #111827;
+        }
+        
+        .message.assistant em,
+        .message.assistant i {
+          font-style: italic;
+          color: #374151;
+        }
+        
+        .message.assistant code {
+          background: #f3f4f6;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 13px;
+          font-family: 'Courier New', Courier, monospace;
+          color: #dc2626;
+        }
+        
+        .message.assistant pre {
+          background: #1f2937;
+          color: #f9fafb;
+          padding: 12px;
+          border-radius: 6px;
+          overflow-x: auto;
+          margin: 8px 0;
+        }
+        
+        .message.assistant pre code {
+          background: transparent;
+          color: #f9fafb;
+          padding: 0;
+          font-size: 13px;
+        }
+        
+        .message.assistant ul,
+        .message.assistant ol {
+          margin: 8px 0;
+          padding-left: 20px;
+        }
+        
+        .message.assistant li {
+          margin: 4px 0;
+          line-height: 1.6;
+        }
+        
+        .message.assistant h1,
+        .message.assistant h2,
+        .message.assistant h3,
+        .message.assistant h4,
+        .message.assistant h5,
+        .message.assistant h6 {
+          font-weight: 600;
+          margin: 12px 0 8px 0;
+          color: #111827;
+        }
+        
+        .message.assistant h1 { font-size: 18px; }
+        .message.assistant h2 { font-size: 16px; }
+        .message.assistant h3 { font-size: 15px; }
+        .message.assistant h4 { font-size: 14px; }
+        
+        .message.assistant p {
+          margin: 8px 0;
+        }
+        
+        .message.assistant p:first-child {
+          margin-top: 0;
+        }
+        
+        .message.assistant p:last-child {
+          margin-bottom: 0;
+        }
+        
+        .message.assistant blockquote {
+          border-left: 3px solid #3b82f6;
+          padding-left: 12px;
+          margin: 8px 0;
+          color: #6b7280;
+          font-style: italic;
+        }
+        
+        .message.assistant a {
+          color: #3b82f6;
+          text-decoration: underline;
+        }
+        
+        .message.assistant a:hover {
+          color: #2563eb;
+        }
+        
         .message-loading {
           color: #6b7280;
           font-style: italic;
@@ -695,16 +790,25 @@ const ChatBot = () => {
 /**
  * Format message content với markdown đơn giản
  */
+// Configure marked options for clean rendering
+marked.setOptions({
+  breaks: true, // Convert \n to <br>
+  gfm: true, // GitHub Flavored Markdown
+  headerIds: false, // Don't add IDs to headers
+  mangle: false, // Don't escape emails
+});
+
 const formatMessage = (content) => {
   if (!content) return '';
   
-  return content
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code style="background:#f3f4f6;padding:2px 4px;border-radius:3px;font-size:12px;">$1</code>')
-    // Line breaks
-    .replace(/\n/g, '<br/>');
+  try {
+    // Use marked to parse markdown properly
+    return marked.parse(content);
+  } catch (error) {
+    console.error('Markdown parsing error:', error);
+    // Fallback to simple text with line breaks
+    return content.replace(/\n/g, '<br/>');
+  }
 };
 
 export default ChatBot;
