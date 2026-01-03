@@ -201,13 +201,14 @@ const Sidebar = () => {
   };
 
   const menuItems = [
-    { path: '/downloads', icon: 'las la-download', label: 'Tải xuống', section: 'public' },
     { path: '/admin/dashboard', icon: 'las la-home', label: 'Bảng điều khiển', section: 'admin' },
+    { path: '/downloads', icon: 'las la-download', label: 'Tải xuống', section: 'public' },
     { path: '/admin/keys', icon: 'las la-key', label: 'Quản lý key', section: 'admin' },
     { path: '/admin/updates', icon: 'las la-cloud-download-alt', label: 'Quản lý cập nhật', section: 'admin' },
     { path: '/admin/structure', icon: 'las la-sitemap', label: 'Cấu trúc dự án', section: 'docs' },
     { path: '/admin/guide', icon: 'las la-book', label: 'Chỉnh sửa & phát hành', section: 'docs' },
     { path: '/admin/search', icon: 'las la-search', label: 'Tìm kiếm', section: 'docs' },
+    { path: '/admin/prompt-generator', icon: 'las la-magic', label: 'Tạo prompt', section: 'docs' },
     { path: '/admin/usage-guide', icon: 'las la-question-circle', label: 'Hướng dẫn sử dụng', section: 'docs' },
   ];
 

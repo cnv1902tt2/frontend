@@ -16,6 +16,7 @@ import Structure from './pages/Structure';
 import Guide from './pages/Guide';
 import Search from './pages/Search';
 import UsageGuide from './pages/UsageGuide';
+import PromptGenerator from './pages/PromptGenerator';
 import './index.css';
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
             <Route path="/admin/guide" element={<Guide />} />
             <Route path="/admin/search" element={<Search />} />
             <Route path="/admin/usage-guide" element={<UsageGuide />} />
+            <Route path="/admin/prompt-generator" element={<PromptGenerator />} />
           </Route>
 
           {/* Fallback */}
